@@ -20,6 +20,22 @@ function whatIsHappening() {
     var_dump($_SESSION);
 }
 
+function handleRest(){
+    echo "yeet";
+}
+function handleOrder(){
+    $timeNow = time();
+    $objectTime = new DateTime();
+    $interval = new DateInterval('PT120M');
+    $deliveryTime = $objectTime->add($interval);
+    echo "Your order is complete!<br>";
+    echo "you ordered with email= {$_SESSION['email']}<br>";
+    echo "The delivery will be going to {$_SESSION['street']} {$_SESSION['streetnumber']} in {$_SESSION['city']}<br>";
+    echo "Expected delivery time: " . $deliveryTime->format("H:i");
+    session_destroy();
+    die();
+}
+
 //your products with their price.
 $food = [
     ['name' => 'Club Ham', 'price' => 3.20],
@@ -35,14 +51,31 @@ $drinks = [
     ['name' => 'Sprite', 'price' => 2],
     ['name' => 'Ice-tea', 'price' => 3],
 ];
-
-if($_GET['food'] === '0'){
-    $products = $drinks;
-} else {
-    $products = $food;
+if(isset($_SESSION['food']) && !isset($_GET['food'])){
+    $_GET['food'] = $_SESSION['food'];
 }
+if(!isset($_GET['food']) || $_GET['food'] === '1'){
+    $products = $food;
+    $_SESSION['food'] = $_GET['food'];
+} else {
+    $products = $drinks;
+    $_SESSION['food'] = $_GET['food'];
+}
+
+$orders = $_POST['products'];
+print_r($orders);
+foreach ($orders as $order){
+    echo $order . "<br>";
+}
+
 $totalValue = 0;
-echo whatIsHappening();
+
+$_SESSION['ordered'] = false;
+/*echo whatIsHappening();*/
+
+if($_SESSION['isStarted'] && $_SESSION['ordered']){
+    echo "Delivery Time: ";
+}
 
 function validateForm(){
     $email = $_POST['email'];
@@ -53,34 +86,37 @@ function validateForm(){
     if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){
         echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in a valid email.</div>";
     } else{
-        $_SESSION['email'] = $email;
+        $_SESSION['email'] = trim($email);
     }
     if(empty($street)){
         echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in your street.</div>";
     } else {
-        $_SESSION['street'] = $street;
+        $_SESSION['street'] = trim($street);
     }
-    if(empty($streetNumber)){
-        echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in your street number.</div>";
+    if(empty($streetNumber) || !is_numeric($streetNumber)){
+        echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in a valid street number.</div>";
     } else {
-        $_SESSION['streetnumber'] = $streetNumber;
+        $_SESSION['streetnumber'] = trim($streetNumber);
     }
     if(empty($city)){
         echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in the city.</div>";
     } else {
-        $_SESSION['city'] = $city;
+        $_SESSION['city'] = trim($city);
     }
-    if(empty($zipcode)){
-        echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in the zipcode.</div>";
+    if(empty($zipcode) || !is_numeric($zipcode)){
+        echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in a valid zipcode.</div>";
     } else {
-        $_SESSION['zipcode'] = $zipcode;
+        $_SESSION['zipcode'] = trim($zipcode);
     }
-    var_dump(filter_var($email, FILTER_VALIDATE_EMAIL));
-}
+    if(empty($email) || !filter_var($email, FILTER_SANITIZE_EMAIL) || empty($street) ||
+        empty($streetNumber) || !is_numeric($streetNumber) || empty($city) || empty($zipcode) || !is_numeric($zipcode)){
+        handleRest();
+    } else {
+    handleOrder();
+}}
 if($_SESSION['isStarted']){
     validateForm();
 } else {
     $_SESSION['isStarted'] = true;
 }
-
 require 'form-view.php';
