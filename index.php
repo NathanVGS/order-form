@@ -1,12 +1,11 @@
 <?php
-//this line makes PHP behave in a more strict way
 declare(strict_types=1);
 
 ini_set('display_errors', "1");
 ini_set('display_startup_errors', "1");
 error_reporting(E_ALL);
 
-//we are going to use session variables so we need to enable sessions
+
 session_start();
 
 function whatIsHappening() {
@@ -19,17 +18,22 @@ function whatIsHappening() {
     echo '<h2>$_SESSION</h2>';
     var_dump($_SESSION);
 }
-
-function handleRest(){
-    echo "yeet";
+function calcPrice($food, $drinks){
+    return "10$ testing";
 }
-function handleOrder(){
-    $timeNow = time();
+function handleOrder($food, $drinks){
     $objectTime = new DateTime();
-    $interval = new DateInterval('PT120M');
+    if(isset($_POST['express_delivery'])){
+        $timeToAdd = "PT45M";
+    } else {
+        $timeToAdd = "PT120M";
+    }
+    $interval = new DateInterval($timeToAdd);
     $deliveryTime = $objectTime->add($interval);
+    $price = calcPrice($food, $drinks);
     echo "Your order is complete!<br>";
     echo "you ordered with email= {$_SESSION['email']}<br>";
+    echo "You have to pay $price <br>";
     echo "The delivery will be going to {$_SESSION['street']} {$_SESSION['streetnumber']} in {$_SESSION['city']}<br>";
     echo "Expected delivery time: " . $deliveryTime->format("H:i");
     session_destroy();
@@ -51,6 +55,10 @@ $drinks = [
     ['name' => 'Sprite', 'price' => 2],
     ['name' => 'Ice-tea', 'price' => 3],
 ];
+
+if(!isset($_SESSION['orders'])){
+    $_SESSION['orders'] = [];
+}
 if(isset($_SESSION['food']) && !isset($_GET['food'])){
     $_GET['food'] = $_SESSION['food'];
 }
@@ -71,19 +79,24 @@ foreach ($orders as $order){
 $totalValue = 0;
 
 $_SESSION['ordered'] = false;
-/*echo whatIsHappening();*/
 
-if($_SESSION['isStarted'] && $_SESSION['ordered']){
-    echo "Delivery Time: ";
-}
-
-function validateForm(){
+function validateForm($food, $drinks){
     $email = $_POST['email'];
     $street = $_POST['street'];
     $streetNumber = $_POST['streetnumber'];
     $city = $_POST['city'];
     $zipcode = $_POST['zipcode'];
-    if(empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+    $orders = $_POST['products'];
+    var_dump($orders);
+    foreach ($orders as $order){
+        foreach (array_merge($food, $drinks) as $item){
+            if($order === $item['name'] && !in_array($order, $_SESSION, true)){
+                array_push($_SESSION['orders'], $order);
+            }
+        }
+    }
+    var_dump($_SESSION['orders']);
+    if(empty($email) || !filter_var(trim($email), FILTER_VALIDATE_EMAIL)){
         echo "<div class=\"alert alert-danger\" role=\"alert\"> Fill in a valid email.</div>";
     } else{
         $_SESSION['email'] = trim($email);
@@ -108,14 +121,15 @@ function validateForm(){
     } else {
         $_SESSION['zipcode'] = trim($zipcode);
     }
-    if(empty($email) || !filter_var($email, FILTER_SANITIZE_EMAIL) || empty($street) ||
-        empty($streetNumber) || !is_numeric($streetNumber) || empty($city) || empty($zipcode) || !is_numeric($zipcode)){
-        handleRest();
+    if(!empty($_SESSION['email']) && filter_var($_SESSION['email'], FILTER_SANITIZE_EMAIL) && !empty($_SESSION['street']) &&
+        !empty($_SESSION['streetnumber']) && is_numeric($_SESSION['streetnumber']) && !empty($_SESSION['city']) && !empty($_SESSION['zipcode']) &&
+        is_numeric($_SESSION['zipcode'])) {
+        handleOrder($food, $drinks);
     } else {
-    handleOrder();
-}}
+        echo "<div class=\"alert alert-warning\" role=\"alert\"> Nothing ordered yet...</div>";
+    }}
 if($_SESSION['isStarted']){
-    validateForm();
+    validateForm($food, $drinks);
 } else {
     $_SESSION['isStarted'] = true;
 }
